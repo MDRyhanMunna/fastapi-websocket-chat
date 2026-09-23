@@ -1,16 +1,22 @@
 # FastAPI WebSocket Chatroom
 
-A real-time chat application built with **FastAPI**, **WebSockets**, **SQLite**, and vanilla **HTML/CSS/JavaScript**.
+A real-time multi-room chat application built with **FastAPI**, **WebSockets**, **SQLite**, **JWT authentication**, and vanilla **HTML/CSS/JavaScript**.
 
-The project supports multi-room chat, private messages, presence, typing indicators, read receipts, message editing/deletion, replies, reactions, file sharing, room management, search, and persistent chat history.
+The project supports public/private rooms, direct messages, online presence, typing indicators, read receipts, message editing/deletion, replies, reactions, file sharing, room management, search, pagination, persistent chat history, and a built-in developer profile panel.
 
-> **Project status:** complete as an educational/capstone project. See the [Security & production notes](#security--production-notes) before deploying it publicly.
+> **Project status:** Complete as an educational/capstone project.  
+> See the [Security & production notes](#security--production-notes) before deploying publicly.
+
+## Repository
+
+**GitHub:** https://github.com/MDRyhanMunna/fastapi-websocket-chat
 
 ## Features
 
 - User registration and login
 - Password hashing with `pwdlib`
 - JWT-based authentication
+- Show/hide password controls on login and registration
 - Real-time WebSocket messaging
 - Public and private rooms
 - Room creation, joining, leaving, and member management
@@ -24,30 +30,59 @@ The project supports multi-room chat, private messages, presence, typing indicat
 - Reply to messages
 - Emoji reactions
 - File and image sharing
+- Compact attachment preview before sending
 - 10 MB upload limit
 - Room-message search
-- Older room-message loading / pagination
+- Older-message loading / pagination
 - Responsive dark chat interface
 - Per-tab browser sessions using `sessionStorage`
+- Built-in developer profile panel
 
-## Tech stack
+## Tech Stack
 
 - **Backend:** Python, FastAPI
 - **Real-time transport:** WebSockets
 - **Database:** SQLite
 - **Authentication:** JWT + password hashing
 - **Frontend:** HTML, CSS, vanilla JavaScript
-- **File storage:** local `uploads/` directory
+- **File storage:** Local `uploads/` directory
 
-## Project structure
+## Screenshots
+
+### Login
+
+![Login page](docs/screenshots/login.png)
+
+### Room Directory
+
+![Room directory](docs/screenshots/room-directory.png)
+
+### Room Chat
+
+![Room chat](docs/screenshots/room-chat.png)
+
+### Private Chat
+
+![Private chat](docs/screenshots/private-chat.png)
+
+### File Sharing
+
+![File sharing](docs/screenshots/file-sharing.png)
+
+## Project Structure
 
 ```text
-websocket-chat/
+fastapi-websocket-chat/
 ├── .github/
 │   └── workflows/
 │       └── syntax-check.yml
 ├── docs/
 │   └── screenshots/
+│       ├── file-sharing.png
+│       ├── login.png
+│       ├── private-chat.png
+│       ├── room-chat.png
+│       ├── room-directory.png
 │       └── README.md
 ├── uploads/
 │   └── .gitkeep
@@ -62,32 +97,33 @@ websocket-chat/
 └── requirements.txt
 ```
 
-`chat.db`, database backups, Python cache files, and real user uploads are intentionally excluded from Git.
+`chat.db`, database backups, Python cache files, virtual environments, real secrets, and real user uploads are intentionally excluded from Git.
 
 ## Requirements
 
 - Python **3.10+**
 - `pip`
+- A modern web browser
 
-## Local setup
+## Local Setup
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git
-cd YOUR_REPOSITORY
+git clone https://github.com/MDRyhanMunna/fastapi-websocket-chat.git
+cd fastapi-websocket-chat
 ```
 
 ### 2. Create a virtual environment
 
-Windows PowerShell:
+#### Windows PowerShell
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
 
-macOS/Linux:
+#### macOS / Linux
 
 ```bash
 python3 -m venv .venv
@@ -102,25 +138,25 @@ pip install -r requirements.txt
 
 ### 4. Set the JWT secret
 
-Generate a secret:
+Generate a strong secret:
 
 ```bash
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Windows PowerShell:
+#### Windows PowerShell
 
 ```powershell
 $env:CHAT_SECRET_KEY = "PASTE_YOUR_GENERATED_SECRET_HERE"
 ```
 
-macOS/Linux:
+#### macOS / Linux
 
 ```bash
 export CHAT_SECRET_KEY="PASTE_YOUR_GENERATED_SECRET_HERE"
 ```
 
-Do **not** commit a real secret to GitHub.
+Do **not** commit your real secret to GitHub.
 
 ### 5. Run the application
 
@@ -136,7 +172,7 @@ http://127.0.0.1:8000
 
 The application creates `chat.db` automatically on first run.
 
-## File uploads
+## File Uploads
 
 The app accepts these file types:
 
@@ -153,7 +189,9 @@ The app accepts these file types:
 
 Maximum upload size: **10 MB**.
 
-Local uploads are stored in `uploads/`. Real uploaded files are ignored by Git to avoid publishing users' files.
+When a file is selected, the frontend shows a compact attachment preview before sending. Users can send the attachment with or without a text message.
+
+Local uploads are stored in `uploads/`. Real uploaded files are ignored by Git so user files are not accidentally published.
 
 ## Architecture
 
@@ -166,18 +204,18 @@ flowchart LR
     B --> E[In-memory WebSocket connection manager]
 ```
 
-### Main flow
+### Main Flow
 
 1. A user registers or logs in through the HTTP API.
-2. FastAPI returns a JWT access token.
+2. FastAPI verifies credentials and returns a JWT access token.
 3. The browser stores the active session in `sessionStorage`.
-4. The browser opens an authenticated WebSocket connection for real-time events.
+4. The browser opens an authenticated WebSocket connection.
 5. Messages are persisted in SQLite.
-6. Connected clients receive message, presence, typing, reaction, edit/delete, and read-receipt updates in real time.
+6. Connected clients receive messages, presence, typing, reactions, edits/deletes, read receipts, and room updates in real time.
 
-## HTTP endpoints
+## HTTP and WebSocket Endpoints
 
-The current project includes endpoints for:
+The project includes endpoints such as:
 
 - `POST /api/register`
 - `POST /api/login`
@@ -209,32 +247,54 @@ SQLite stores application data such as:
 
 The database file is created locally and is **not included in the GitHub repository**.
 
-## Security & production notes
+## Developer Profile Panel
 
-This project is suitable for coursework, demos, and local development. Before a public production deployment, address the following:
+The frontend includes a floating **Developer** button on the login/register page and the room directory page.
 
-- Always set a strong `CHAT_SECRET_KEY` in the deployment environment.
-- The code contains a development fallback secret; do not rely on it in production.
-- Uploaded files are served from the `/uploads` path. For private production chats, use authenticated downloads or private object storage.
-- Add rate limiting / brute-force protection to authentication and upload endpoints.
+The button is hidden inside room chats and private chats so it does not overlap the message composer or Send button.
+
+The developer panel contains:
+
+- Developer name
+- Project description
+- Technology stack
+- GitHub link
+- Portfolio link
+- Email link
+
+Configure the links near the bottom of `index.html`:
+
+```javascript
+const DEVELOPER_LINKS = {
+    github: "https://github.com/MDRyhanMunna",
+    portfolio: "",
+    email: ""
+};
+```
+
+You can add your portfolio link later after this project is added to your portfolio.
+
+## Security & Production Notes
+
+This project is suitable for coursework, demos, portfolio use, and local development.
+
+Before a public production deployment:
+
+- Always set a strong `CHAT_SECRET_KEY`.
+- Do not rely on the development fallback secret.
+- Use HTTPS/WSS.
+- Add rate limiting and brute-force protection.
 - Add password reset and email verification if required.
-- Use HTTPS/WSS in production.
-- SQLite and the in-memory WebSocket connection manager are best suited to a single application process. Multi-instance deployment would typically require a shared database such as PostgreSQL and shared pub/sub/presence infrastructure such as Redis.
-- Add automated tests and database migrations before operating the service as a production system.
+- Protect private file downloads with authenticated access.
+- Consider private object storage for user uploads.
+- Use a production database such as PostgreSQL for larger deployments.
+- Use Redis or another shared pub/sub layer for multi-instance WebSocket deployments.
+- Add automated tests and proper database migrations.
+- Add logging, backups, and monitoring.
 
 See [SECURITY.md](SECURITY.md) for repository-specific guidance.
 
-## Screenshots
-
-Add your final screenshots under `docs/screenshots/`, then replace these placeholders:
-
-```markdown
-![Login](docs/screenshots/login.png)
-![Room chat](docs/screenshots/room-chat.png)
-![Private chat](docs/screenshots/private-chat.png)
-```
-
-## Suggested demo flow
+## Suggested Demo Flow
 
 1. Register two users in separate browser sessions.
 2. Create or join a public room.
@@ -244,9 +304,21 @@ Add your final screenshots under `docs/screenshots/`, then replace these placeho
 6. Demonstrate sent/seen receipts.
 7. Reply and react to a message.
 8. Edit and delete a message.
-9. Upload an image/file.
+9. Upload an image or document.
 10. Refresh the page and show that persisted messages remain.
+
+## Updating the Project on GitHub
+
+After making changes:
+
+```bash
+git add .
+git commit -m "Describe your update"
+git push
+```
 
 ## License
 
-No license has been selected automatically. If you want other people to reuse the project, add a license before publishing. GitHub can generate common licenses such as MIT directly from the repository interface.
+No license has been selected automatically.
+
+If you want other people to reuse the project, you can add an MIT License or another open-source license from GitHub.

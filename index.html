@@ -8,6 +8,8 @@
     >
     <title>WebSocket Chatroom</title>
 
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -1789,6 +1791,99 @@
         .developer-link-arrow {
             color: #60708e;
             font-size: 18px;
+        }
+
+        .developer-contact-form {
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 14px;
+            background: #1a263c;
+        }
+
+        .developer-contact-field {
+            display: grid;
+            gap: 7px;
+        }
+
+        .developer-contact-field label {
+            color: #9eacc5;
+            font-size: 12px;
+            font-weight: 800;
+        }
+
+        .developer-contact-field input,
+        .developer-contact-field textarea {
+            width: 100%;
+            border: 1px solid rgba(255,255,255,.12);
+            border-radius: 10px;
+            outline: none;
+            background: #0d1527;
+            color: #eef3ff;
+            padding: 11px 12px;
+            font: inherit;
+            box-shadow: none;
+        }
+
+        .developer-contact-field textarea {
+            min-height: 112px;
+            resize: vertical;
+            line-height: 1.45;
+        }
+
+        .developer-contact-field input::placeholder,
+        .developer-contact-field textarea::placeholder {
+            color: #637390;
+        }
+
+        .developer-contact-field input:focus,
+        .developer-contact-field textarea:focus {
+            border-color: #6557ff;
+            box-shadow: 0 0 0 3px rgba(101,87,255,.12);
+        }
+
+        .developer-contact-submit {
+            min-height: 44px;
+            border: 0 !important;
+            border-radius: 10px !important;
+            background: linear-gradient(135deg, #6557ff, #4f7cff) !important;
+            color: white !important;
+            font-weight: 800;
+            box-shadow: 0 10px 24px rgba(79,124,255,.20) !important;
+        }
+
+        .developer-contact-submit:disabled {
+            opacity: .65;
+            cursor: wait;
+        }
+
+        .developer-contact-status {
+            min-height: 18px;
+            margin: 0;
+            color: #8ea0bf;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+
+        .developer-contact-status.success {
+            color: #55d98b;
+        }
+
+        .developer-contact-status.error {
+            color: #ff8f9d;
+        }
+
+        .developer-contact-honeypot {
+            position: absolute !important;
+            width: 1px !important;
+            height: 1px !important;
+            padding: 0 !important;
+            margin: -1px !important;
+            overflow: hidden !important;
+            clip: rect(0,0,0,0) !important;
+            white-space: nowrap !important;
+            border: 0 !important;
         }
 
         .developer-footer {
@@ -7621,13 +7716,38 @@ document.addEventListener("DOMContentLoaded", function() {
                         <span class="developer-link-label">Portfolio</span>
                         <span class="developer-link-arrow">↗</span>
                     </button>
-
-                    <button class="developer-link" type="button" onclick="openDeveloperLink('email')">
-                        <span class="developer-link-icon">✉️</span>
-                        <span class="developer-link-label">Email</span>
-                        <span class="developer-link-arrow">↗</span>
-                    </button>
                 </div>
+            </section>
+
+            <section class="developer-section">
+                <div class="developer-section-title">Contact Me</div>
+                <form id="developerContactForm" class="developer-contact-form" onsubmit="submitDeveloperContact(event)">
+                    <div class="developer-contact-field">
+                        <label for="developerContactName">Your name</label>
+                        <input id="developerContactName" name="from_name" type="text" maxlength="80" autocomplete="name" placeholder="Your name" required>
+                    </div>
+
+                    <div class="developer-contact-field">
+                        <label for="developerContactEmail">Your email</label>
+                        <input id="developerContactEmail" name="from_email" type="email" maxlength="160" autocomplete="email" placeholder="you@example.com" required>
+                    </div>
+
+                    <div class="developer-contact-field">
+                        <label for="developerContactMessage">Message</label>
+                        <textarea id="developerContactMessage" name="message" maxlength="1500" placeholder="Write your message..." required></textarea>
+                    </div>
+
+                    <label class="developer-contact-honeypot" aria-hidden="true">
+                        Website
+                        <input id="developerContactWebsite" type="text" tabindex="-1" autocomplete="off">
+                    </label>
+
+                    <button id="developerContactSubmit" class="developer-contact-submit" type="submit">
+                        Send Message
+                    </button>
+
+                    <p id="developerContactStatus" class="developer-contact-status" role="status" aria-live="polite"></p>
+                </form>
             </section>
 
             <div class="developer-footer">Made with ♥ · WebSocket Chatroom · 2026</div>
@@ -7681,10 +7801,122 @@ function syncDeveloperButtonVisibility() {
 }
 
 const DEVELOPER_LINKS = {
-    github: "",
-    portfolio: "",
-    email: ""
+    github: "https://github.com/MDRyhanMunna",
+    portfolio: ""
 };
+
+const EMAILJS_CONFIG = {
+    serviceId: "service_152vrq4",
+    templateId: "template_8qbjzwf",
+    publicKey: "lOt03A_3lO8PHZJVr"
+};
+
+let developerContactSending = false;
+let developerContactLastSentAt = 0;
+
+function initializeDeveloperEmail() {
+    if (!window.emailjs) {
+        return false;
+    }
+
+    try {
+        emailjs.init({
+            publicKey: EMAILJS_CONFIG.publicKey
+        });
+        return true;
+    } catch (error) {
+        console.error("EmailJS initialization failed:", error);
+        return false;
+    }
+}
+
+function setDeveloperContactStatus(message, state = "") {
+    const status = document.getElementById("developerContactStatus");
+    if (!status) return;
+
+    status.className = "developer-contact-status";
+    if (state) status.classList.add(state);
+    status.textContent = message;
+}
+
+async function submitDeveloperContact(event) {
+    event.preventDefault();
+
+    if (developerContactSending) return;
+
+    const form = document.getElementById("developerContactForm");
+    const submitButton = document.getElementById("developerContactSubmit");
+    const nameInput = document.getElementById("developerContactName");
+    const emailInput = document.getElementById("developerContactEmail");
+    const messageInput = document.getElementById("developerContactMessage");
+    const honeypot = document.getElementById("developerContactWebsite");
+
+    if (!form || !submitButton || !nameInput || !emailInput || !messageInput) {
+        return;
+    }
+
+    if (honeypot && honeypot.value.trim()) {
+        form.reset();
+        setDeveloperContactStatus("Message sent. Thank you!", "success");
+        return;
+    }
+
+    if (!form.reportValidity()) {
+        return;
+    }
+
+    const now = Date.now();
+    if (now - developerContactLastSentAt < 10000) {
+        setDeveloperContactStatus("Please wait a few seconds before sending another message.", "error");
+        return;
+    }
+
+    if (!window.emailjs && !initializeDeveloperEmail()) {
+        setDeveloperContactStatus("Email service is unavailable right now. Please try again later.", "error");
+        return;
+    }
+
+    developerContactSending = true;
+    submitButton.disabled = true;
+    submitButton.textContent = "Sending...";
+    setDeveloperContactStatus("Sending your message...");
+
+    const fromName = nameInput.value.trim();
+    const fromEmail = emailInput.value.trim();
+    const message = messageInput.value.trim();
+
+    const templateParams = {
+        from_name: fromName,
+        user_name: fromName,
+        name: fromName,
+        from_email: fromEmail,
+        user_email: fromEmail,
+        email: fromEmail,
+        reply_to: fromEmail,
+        message: message,
+        project_name: "FastAPI WebSocket Chatroom",
+        title: "WebSocket Chatroom contact message"
+    };
+
+    try {
+        await emailjs.send(
+            EMAILJS_CONFIG.serviceId,
+            EMAILJS_CONFIG.templateId,
+            templateParams
+        );
+
+        developerContactLastSentAt = Date.now();
+        form.reset();
+        setDeveloperContactStatus("Message sent successfully. Thank you!", "success");
+    } catch (error) {
+        console.error("EmailJS send failed:", error);
+        setDeveloperContactStatus("Could not send the message. Please try again.", "error");
+    } finally {
+        developerContactSending = false;
+        submitButton.disabled = false;
+        submitButton.textContent = "Send Message";
+    }
+}
 
 function openDeveloperPanel() {
     const backdrop = document.getElementById("developerBackdrop");
@@ -7706,22 +7938,13 @@ function openDeveloperLink(type) {
     const value = DEVELOPER_LINKS[type];
 
     if (!value) {
-        const label = type === "github"
-            ? "GitHub"
-            : type === "portfolio"
-                ? "Portfolio"
-                : "Email";
+        const label = type === "github" ? "GitHub" : "Portfolio";
 
         if (typeof showToast === "function") {
             showToast(label + " link is not configured yet.");
         } else {
             alert(label + " link is not configured yet.");
         }
-        return;
-    }
-
-    if (type === "email") {
-        window.location.href = "mailto:" + value;
         return;
     }
 
@@ -7751,6 +7974,7 @@ const developerVisibilityObserver = new MutationObserver(
     }
 });
 
+initializeDeveloperEmail();
 syncDeveloperButtonVisibility();
 </script>
 
